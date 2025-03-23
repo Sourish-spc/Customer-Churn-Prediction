@@ -330,11 +330,5 @@ print(f"Prediciton Probability: {pred_prob}")
 
 encoders
 
-"""**To do:**
-1. Implement Hyperparameter Tuining
-2. Try Model Selection
-3. Try downsampling
-4. Try to address teh overfitting
-5. Try Startified k fold CV
-"""
+
 
