@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Customer_Churn_Prediction_using_ML.ipynb
+"""Customer_Churn_Prediction_using_ML.ipynb """
 
 # 1. Import Libraries
 import numpy as np
@@ -115,7 +115,4 @@ probability = model.predict_proba(input_df)[0]
 
 print(f"Prediction: {'Churn' if prediction == 1 else 'No Churn'}")
 print(f"Prediction Probability: {probability}")
-
-
-
 
