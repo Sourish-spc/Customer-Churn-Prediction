@@ -1,9 +1,7 @@
 # -*- coding: utf-8 -*-
 """Customer_Churn_Prediction_using_ML.ipynb
 
-**1. Importing the dependencies**
-"""
-
+# 1. Import Libraries
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -17,269 +15,69 @@ from xgboost import XGBClassifier
 from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
 import pickle
 
-"""**2. Data Loading and Understanding**"""
+# 2. Load Data
+df = pd.read_csv("/D/WA_Fn-UseC_-Telco-Customer-Churn.csv")
+df.drop(columns=["customerID"], inplace=True)
 
-# load teh csv data to a pandas dataframe
-df = pd.read_csv("D:/New folder(2)/WA_Fn-UseC_-Telco-Customer-Churn.csv")
+# Handle missing/empty values in 'TotalCharges'
+df["TotalCharges"] = df["TotalCharges"].replace(" ", "0.0").astype(float)
 
-df.shape
+# Encode target column
+df["Churn"] = df["Churn"].map({"Yes": 1, "No": 0})
 
-df.head()
-
-pd.set_option("display.max_columns", None)
-
-df.head(2)
-
-df.info()
-
-# dropping customerID column as this is not required for modelling
-df = df.drop(columns=["customerID"])
-
-df.head(2)
-
-df.columns
-
-print(df["gender"].unique())
-
-print(df["SeniorCitizen"].unique())
-
-# printing the unique values in all the columns
-
-numerical_features_list = ["tenure", "MonthlyCharges", "TotalCharges"]
-
-for col in df.columns:
-  if col not in numerical_features_list:
-    print(col, df[col].unique())
-    print("-"*50)
-
-print(df.isnull().sum())
-
-#df["TotalCharges"] = df["TotalCharges"].astype(float)
-
-df[df["TotalCharges"]==" "]
-
-len(df[df["TotalCharges"]==" "])
-
-df["TotalCharges"] = df["TotalCharges"].replace({" ": "0.0"})
-
-df["TotalCharges"] = df["TotalCharges"].astype(float)
-
-df.info()
-
-# checking the class distribution of target column
-print(df["Churn"].value_counts())
-
-"""**Insights:**
-1. Customer ID removed as it is not required for modelling
-2. No mmissing values in the dataset
-3. Missing values in the TotalCharges column were replaced with 0
-4. Class imbalance identified in the target
-
-**3. Exploratory Data Analysis (EDA)**
-"""
-
-df.shape
-
-df.columns
-
-df.head(2)
-
-df.describe()
-
-"""**Numerical Features - Analysis**
-
-Understand the distribution of teh numerical features
-"""
-
-def plot_histogram(df, column_name):
-
-  plt.figure(figsize=(5, 3))
-  sns.histplot(df[column_name], kde=True)
-  plt.title(f"Distribution of {column_name}")
-
-  # calculate the mean and median values for the columns
-  col_mean = df[column_name].mean()
-  col_median = df[column_name].median()
-
-  # add vertical lines for mean and median
-  plt.axvline(col_mean, color="red", linestyle="--", label="Mean")
-  plt.axvline(col_median, color="green", linestyle="-", label="Median")
-
-  plt.legend()
-
-  plt.show()
-
-plot_histogram(df, "tenure")
-
-plot_histogram(df, "MonthlyCharges")
-
-plot_histogram(df, "TotalCharges")
-
-"""**Box plot for numerical features**"""
-
-def plot_boxplot(df, column_name):
-
-  plt.figure(figsize=(5, 3))
-  sns.boxplot(y=df[column_name])
-  plt.title(f"Box Plot of {column_name}")
-  plt.ylabel(column_name)
-  plt.show
-
-plot_boxplot(df, "tenure")
-
-plot_boxplot(df, "MonthlyCharges")
-
-plot_boxplot(df, "TotalCharges")
-
-"""**Correlation Heatmap for numerical columns**"""
-
-# correlation matrix - heatmap
-plt.figure(figsize=(8, 4))
-sns.heatmap(df[["tenure", "MonthlyCharges", "TotalCharges"]].corr(), annot=True, cmap="coolwarm", fmt=".2f")
-plt.title("Correlation Heatmap")
-plt.show()
-
-"""Categorical features - Analysis"""
-
-df.columns
-
-df.info()
-
-"""Countplot for categorical columns"""
-
-object_cols = df.select_dtypes(include="object").columns.to_list()
-
-object_cols = ["SeniorCitizen"] + object_cols
-
-for col in object_cols:
-  plt.figure(figsize=(5, 3))
-  sns.countplot(x=df[col])
-  plt.title(f"Count Plot of {col}")
-  plt.show()
-
-"""**4. Data Preprocessing**"""
-
-df.head(3)
-
-"""Label encoding of target column"""
-
-df["Churn"] = df["Churn"].replace({"Yes": 1, "No": 0})
-
-df.head(3)
-
-print(df["Churn"].value_counts())
-
-"""Label encoding of categorical fetaures"""
-
-# identifying columns with object data type
+# Label encode categorical features
 object_columns = df.select_dtypes(include="object").columns
-
-print(object_columns)
-
-# initialize a dictionary to save the encoders
 encoders = {}
 
-# apply label encoding and store the encoders
 for column in object_columns:
-  label_encoder = LabelEncoder()
-  df[column] = label_encoder.fit_transform(df[column])
-  encoders[column] = label_encoder
+    encoder = LabelEncoder()
+    df[column] = encoder.fit_transform(df[column])
+    encoders[column] = encoder
 
-
-# save the encoders to a pickle file
+# Save encoders
 with open("encoders.pkl", "wb") as f:
-  pickle.dump(encoders, f)
+    pickle.dump(encoders, f)
 
-encoders
-
-df.head()
-
-"""**Traianing and test data split**"""
-
-# splitting the features and target
+# 3. Train-Test Split + SMOTE for class balancing
 X = df.drop(columns=["Churn"])
 y = df["Churn"]
 
-# split training and test data
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+X_train_smote, y_train_smote = SMOTE(random_state=42).fit_resample(X_train, y_train)
 
-print(y_train.shape)
-
-print(y_train.value_counts())
-
-"""Synthetic Minority Oversampling TEchnique (SMOTE)"""
-
-smote = SMOTE(random_state=42)
-
-X_train_smote, y_train_smote = smote.fit_resample(X_train, y_train)
-
-print(y_train_smote.shape)
-
-print(y_train_smote.value_counts())
-
-"""**5. Model Training**
-
-Training with default hyperparameters
-"""
-
-# dictionary of models
+# 4. Model Training & Evaluation
 models = {
     "Decision Tree": DecisionTreeClassifier(random_state=42),
     "Random Forest": RandomForestClassifier(random_state=42),
     "XGBoost": XGBClassifier(random_state=42)
 }
 
-# dictionary to store the cross validation results
-cv_scores = {}
+for name, model in models.items():
+    scores = cross_val_score(model, X_train_smote, y_train_smote, cv=5, scoring="accuracy")
+    print(f"{name} Accuracy: {np.mean(scores):.2f}")
 
-# perform 5-fold cross validation for each model
-for model_name, model in models.items():
-  print(f"Training {model_name} with default parameters")
-  scores = cross_val_score(model, X_train_smote, y_train_smote, cv=5, scoring="accuracy")
-  cv_scores[model_name] = scores
-  print(f"{model_name} cross-validation accuracy: {np.mean(scores):.2f}")
-  print("-"*70)
+# Train final model
+final_model = RandomForestClassifier(random_state=42)
+final_model.fit(X_train_smote, y_train_smote)
+y_pred = final_model.predict(X_test)
 
-cv_scores
+print("Accuracy:", accuracy_score(y_test, y_pred))
+print("Confusion Matrix:\n", confusion_matrix(y_test, y_pred))
+print("Classification Report:\n", classification_report(y_test, y_pred))
 
-"""Random Forest gives the highest accuracy compared to other models with default parameters"""
-
-rfc = RandomForestClassifier(random_state=42)
-
-rfc.fit(X_train_smote, y_train_smote)
-
-print(y_test.value_counts())
-
-"""**6. Model Evaluation**"""
-
-# evaluate on test data
-y_test_pred = rfc.predict(X_test)
-
-print("Accuracy Score:\n", accuracy_score(y_test, y_test_pred))
-print("Confsuion Matrix:\n", confusion_matrix(y_test, y_test_pred))
-print("Classification Report:\n", classification_report(y_test, y_test_pred))
-
-# save the trained model as a pickle file
-model_data = {"model": rfc, "features_names": X.columns.tolist()}
-
-
+# Save final model
+model_data = {"model": final_model, "features_names": X.columns.tolist()}
 with open("customer_churn_model.pkl", "wb") as f:
-  pickle.dump(model_data, f)
+    pickle.dump(model_data, f)
 
-"""**7. Load the saved  model and  build a Predictive System**"""
-
-# load teh saved model and the feature names
-
+# 5. Load model and Predict on New Data
 with open("customer_churn_model.pkl", "rb") as f:
-  model_data = pickle.load(f)
+    model_data = pickle.load(f)
 
-loaded_model = model_data["model"]
+model = model_data["model"]
 feature_names = model_data["features_names"]
 
-print(loaded_model)
-
-print(feature_names)
-
+# Sample input
 input_data = {
     'gender': 'Female',
     'SeniorCitizen': 0,
@@ -302,28 +100,22 @@ input_data = {
     'TotalCharges': 29.85
 }
 
-
-input_data_df = pd.DataFrame([input_data])
+# Encode input
+input_df = pd.DataFrame([input_data])
 
 with open("encoders.pkl", "rb") as f:
-  encoders = pickle.load(f)
+    encoders = pickle.load(f)
 
-
-# encode categorical featires using teh saved encoders
 for column, encoder in encoders.items():
-  input_data_df[column] = encoder.transform(input_data_df[column])
+    input_df[column] = encoder.transform(input_df[column])
 
-# make a prediction
-prediction = loaded_model.predict(input_data_df)
-pred_prob = loaded_model.predict_proba(input_data_df)
+# Predict
+prediction = model.predict(input_df)[0]
+probability = model.predict_proba(input_df)[0]
 
-print(prediction)
+print(f"Prediction: {'Churn' if prediction == 1 else 'No Churn'}")
+print(f"Prediction Probability: {probability}")
 
-# results
-print(f"Prediction: {'Churn' if prediction[0] == 1 else 'No Churn'}")
-print(f"Prediciton Probability: {pred_prob}")
-
-encoders
 
 
 
